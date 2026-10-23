@@ -147,14 +147,15 @@ case "$MODE" in
           -f .theos/obj/debug/BHTwitter.dylib \
           "layout/Library/Application Support/BHT/BHTwitter.bundle"
 
-        # Basic smoke checks: the dylib must be present once inside the IPA,
-        # and the existing companion tweaks must not disappear.
+        # Basic smoke checks. Capture the archive index once: grep -q over
+        # a pipe can give unzip SIGPIPE with bash pipefail enabled.
+        ipa_entries="$(unzip -Z1 packages/NeoFreeBird-sideloaded.ipa)"
         for item in BHTwitter.dylib zxPluginsInject.dylib libbhFLEX.dylib; do
-          if ! unzip -Z1 packages/NeoFreeBird-sideloaded.ipa | grep -Eq "^Payload/[^/]+\\.app/Frameworks/${item//./\\.}$"; then
+          if ! grep -Fq "/Frameworks/$item" <<< "$ipa_entries"; then
             die "Output IPA is missing expected framework: $item"
           fi
         done
-        if ! unzip -Z1 packages/NeoFreeBird-sideloaded.ipa | grep -Eq '^Payload/[^/]+\\.app/BHTwitter\\.bundle/'; then
+        if ! grep -Fq '/BHTwitter.bundle/' <<< "$ipa_entries"; then
           die "Output IPA is missing NeoFreeBird settings resources"
         fi
         say "Verified tweak, supporting libraries and settings bundle in IPA."
