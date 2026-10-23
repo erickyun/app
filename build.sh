@@ -134,12 +134,30 @@ case "$MODE" in
     if [[ -e ./packages/com.atebits.Tweetie2.ipa ]]; then
       say "Building the IPA."
       if [[ "${USE_PREBUILT_IPA:-0}" == "1" ]]; then
-        say "Updating the working NeoFreeBird IPA without injecting duplicate tweaks."
-        bash "$SCRIPT_DIR/scripts/patch-prebuilt-ipa.sh" \
-          packages/com.atebits.Tweetie2.ipa \
-          packages/NeoFreeBird-sideloaded.ipa \
-          .theos/obj/debug/BHTwitter.dylib \
-          "$SCRIPT_DIR/layout/Library/Application Support/BHT/BHTwitter.bundle"
+        # The source app is ALREADY injected with NeoFreeBird. Replacing only
+        # BHTwitter.dylib bypasses cyan's Mach-O/entitlement handling and led
+        # to a build that opened but had no NeoFreeBird menu and no timeline.
+        # Use the same packaging tool as the original sideloaded release to
+        # replace this tweak while preserving the other injected components.
+        require_cmd cyan
+        say "Updating NeoFreeBird with cyan's complete sideload injection pipeline."
+        cyan -i packages/com.atebits.Tweetie2.ipa \
+          -o packages/NeoFreeBird-sideloaded.ipa \
+          --overwrite --ignore-encrypted \
+          -f .theos/obj/debug/BHTwitter.dylib \
+          "layout/Library/Application Support/BHT/BHTwitter.bundle"
+
+        # Basic smoke checks: the dylib must be present once inside the IPA,
+        # and the existing companion tweaks must not disappear.
+        for item in BHTwitter.dylib zxPluginsInject.dylib libbhFLEX.dylib; do
+          if ! unzip -Z1 packages/NeoFreeBird-sideloaded.ipa | grep -Eq "^Payload/[^/]+\\.app/Frameworks/${item//./\\.}$"; then
+            die "Output IPA is missing expected framework: $item"
+          fi
+        done
+        if ! unzip -Z1 packages/NeoFreeBird-sideloaded.ipa | grep -Eq '^Payload/[^/]+\\.app/BHTwitter\\.bundle/'; then
+          die "Output IPA is missing NeoFreeBird settings resources"
+        fi
+        say "Verified tweak, supporting libraries and settings bundle in IPA."
       elif command -v cyan >/dev/null 2>&1; then
         cyan -i packages/com.atebits.Tweetie2.ipa -o packages/NeoFreeBird-sideloaded --ignore-encrypted \
           -uwf .theos/obj/debug/zxPluginsInject.dylib .theos/obj/debug/libbhFLEX.dylib \
