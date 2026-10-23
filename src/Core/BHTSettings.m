@@ -253,6 +253,15 @@ static NSDictionary<NSString*, NSDictionary*>* BHTSettingsPages(void) {
                     },
                     @{@"key": @"square_avatars",
                       @"default": @NO,
+                      @"type": @"toggle"},
+                    @{@"key": @"hide_user_usernames",
+                      @"default": @NO,
+                      @"type": @"toggle"},
+                    @{@"key": @"hide_user_names",
+                      @"default": @NO,
+                      @"type": @"toggle"},
+                    @{@"key": @"hide_user_avatars",
+                      @"default": @NO,
                       @"type": @"toggle"}
                 ]
             },
