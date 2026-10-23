@@ -553,3 +553,10 @@
 
 "GENERIC_OFF_LABEL" = "Kapalı";
 "SUBSCRIPTION_UNDO_SEND_DURATION_LABEL" = "%ld saniye";
+/* Bağımsız kullanıcı kimliği görünürlük ayarları */
+"HIDE_USER_USERNAMES_TITLE" = "Kullanıcı adlarını (@) gizle";
+"HIDE_USER_USERNAMES_DETAIL" = "Gönderilerde, kullanıcı listelerinde ve profillerde @kullanıcı adlarını gizler.";
+"HIDE_USER_NAMES_TITLE" = "Görünen adları gizle";
+"HIDE_USER_NAMES_DETAIL" = "Gönderilerde, kullanıcı listelerinde ve profillerde görünen adları gizler.";
+"HIDE_USER_AVATARS_TITLE" = "Profil fotoğraflarını gizle";
+"HIDE_USER_AVATARS_DETAIL" = "Profil resimlerini değiştirmeden uygulamadaki kullanıcı avatarlarını gizler.";
