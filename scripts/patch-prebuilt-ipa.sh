@@ -55,6 +55,61 @@ fi
 
 echo "Updating tweak: $existing_dylib"
 cp -f "$new_dylib" "$existing_dylib"
+
+# Theos emits jailbreak-targeted install names, while cyan normally rewrites
+# them for sideloading. Replacing an already-injected .dylib bypassed cyan's
+# dependency fix and caused dyld to look for /Library/Frameworks/CydiaSubstrate
+# on a stock iPhone. Reproduce cyan's rewrite for the replacement binary.
+command -v otool >/dev/null || { echo "otool is required (macOS runner)" >&2; exit 1; }
+command -v install_name_tool >/dev/null || { echo "install_name_tool is required" >&2; exit 1; }
+substrate_dependency="$(otool -L "$existing_dylib" | awk '/CydiaSubstrate|libsubstrate/ { print $1; exit }')"
+bundled_substrate="@rpath/CydiaSubstrate.framework/CydiaSubstrate"
+
+if [[ -n "$substrate_dependency" && "$substrate_dependency" != "$bundled_substrate" ]]; then
+  echo "Fixing Substrate linkage: $substrate_dependency -> $bundled_substrate"
+  # Preserve parity with cyan's fix_common_dependencies(), which first strips
+  # the signature before editing LC_LOAD_DYLIB.
+  if command -v ldid >/dev/null; then ldid -R "$existing_dylib"; fi
+  install_name_tool -change "$substrate_dependency" "$bundled_substrate" "$existing_dylib"
+fi
+
+if otool -L "$existing_dylib" | grep -F '/Library/Frameworks/CydiaSubstrate.framework/CydiaSubstrate' >/dev/null; then
+  echo "ERROR: replacement still links to the jailbreak-only Substrate path" >&2
+  exit 1
+fi
+
+if [[ -n "$substrate_dependency" ]]; then
+  # Make sure @rpath/CydiaSubstrate.framework/CydiaSubstrate is actually
+  # inside the IPA. cyan installs it automatically while injecting .dylibs.
+  app_frameworks="$(dirname "$existing_dylib")"
+  bundled_framework="$app_frameworks/CydiaSubstrate.framework"
+  if [[ ! -s "$bundled_framework/CydiaSubstrate" ]]; then
+    echo "Bundled Substrate is absent; copying cyan's sideload-compatible version."
+    cyan_framework="$(python3 -c 'from cyan.tbhtypes.executable import Executable; print(Executable.install_dir + "/extras/CydiaSubstrate.framework")')"
+    [[ -s "$cyan_framework/CydiaSubstrate" ]] || {
+      echo "ERROR: cyan's bundled Substrate dependency is missing." >&2
+      exit 1
+    }
+    rm -rf "$bundled_framework"
+    cp -R "$cyan_framework" "$bundled_framework"
+  fi
+
+  app_dir="$(find "$scratch/Payload" -mindepth 1 -maxdepth 1 -type d -name '*.app' -print -quit)"
+  [[ -n "$app_dir" ]] || { echo "Missing .app bundle" >&2; exit 1; }
+  app_executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app_dir/Info.plist")"
+  if ! otool -l "$app_dir/$app_executable" | grep -F '@executable_path/Frameworks' >/dev/null; then
+    echo "Adding missing Frameworks rpath to the application executable."
+    install_name_tool -add_rpath '@executable_path/Frameworks' "$app_dir/$app_executable"
+  fi
+
+  # Fail fast instead of publishing another IPA that crashes at launch.
+  otool -L "$existing_dylib" | grep -F "$bundled_substrate" >/dev/null || {
+    echo "ERROR: Substrate linkage could not be changed to the app-bundled path." >&2
+    exit 1
+  }
+  echo "Substrate dependency and bundled framework verified."
+fi
+
 echo "Updating settings resources: $existing_bundle"
 rm -rf "$existing_bundle"
 cp -R "$new_bundle" "$existing_bundle"
