@@ -10,6 +10,7 @@
 #import "Headers/TWHeaders.h"
 
 extern void applySquareAvatarsSetting(void);
+extern void applyUserPrivacySettings(void);
 
 @implementation ProfilesSettingsViewController
 
@@ -22,6 +23,10 @@ extern void applySquareAvatarsSetting(void);
     NSString* key = objc_getAssociatedObject(sender, @"prefKey");
     if ([key isEqualToString:@"square_avatars"]) {
         applySquareAvatarsSetting();
+    } else if ([key isEqualToString:@"hide_user_usernames"] ||
+               [key isEqualToString:@"hide_user_names"] ||
+               [key isEqualToString:@"hide_user_avatars"]) {
+        applyUserPrivacySettings();
     }
 }
 
