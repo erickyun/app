@@ -5,6 +5,9 @@
 
 #import "HookHelpers.h"
 
+// Applies only to X's author, user and avatar presentation views.
+extern void BHTApplyPrivacyToView(UIView* view);
+
 @interface T1ConversationFooterItem : NSObject
 @property (nonatomic, retain) NSNumber* viewCount;
 @end
@@ -132,6 +135,7 @@
 %hook UIView
 - (void)didMoveToWindow {
     %orig;
+    BHTApplyPrivacyToView(self);
     if ([BHTSettings boolForKey:@"hide_trends"] && [self.accessibilityIdentifier isEqualToString:@"T1TwitterSwift.TrendsSidebarViewController"] && is_iPad()) {
         self.hidden = YES;
         self.userInteractionEnabled = NO;
