@@ -113,6 +113,26 @@ if [[ -n "$substrate_dependency" ]]; then
   echo "Substrate dependency and bundled framework verified."
 fi
 
+# The replacement Mach-O was changed by install_name_tool. Without a fresh
+# code signature iOS can skip a weakly-linked injected tweak, leaving a working
+# app without NeoFreeBird settings (and with confusing timeline failures).
+# Ad-hoc sign it now; the entire IPA still needs the user's ESign certificate.
+codesign --force --sign - "$existing_dylib"
+codesign --verify --verbose=2 "$existing_dylib"
+
+# The supplied IPA already includes an LC_LOAD_WEAK_DYLIB for BHTwitter.
+# Never add another; recent iOS fails immediately with:
+#   DYLD: duplicate linked dylib '@rpath/BHTwitter.dylib'
+app_dir="$(find "$scratch/Payload" -mindepth 1 -maxdepth 1 -type d -name '*.app' -print -quit)"
+[[ -n "$app_dir" ]] || { echo "Invalid IPA: main app missing" >&2; exit 1; }
+app_executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app_dir/Info.plist")"
+load_count="$(otool -L "$app_dir/$app_executable" | awk '$1 == "@rpath/BHTwitter.dylib" { count++ } END { print count+0 }')"
+if [[ "$load_count" != "1" ]]; then
+  echo "ERROR: The base IPA must link BHTwitter exactly once; found $load_count." >&2
+  exit 1
+fi
+echo "Verified exactly one BHTwitter load command and a valid tweak signature."
+
 echo "Updating settings resources: $existing_bundle"
 rm -rf "$existing_bundle"
 cp -R "$new_bundle" "$existing_bundle"
