@@ -133,7 +133,14 @@ case "$MODE" in
     fi
     if [[ -e ./packages/com.atebits.Tweetie2.ipa ]]; then
       say "Building the IPA."
-      if command -v cyan >/dev/null 2>&1; then
+      if [[ "${USE_PREBUILT_IPA:-0}" == "1" ]]; then
+        say "Updating the working NeoFreeBird IPA without injecting duplicate tweaks."
+        bash "$SCRIPT_DIR/scripts/patch-prebuilt-ipa.sh" \
+          packages/com.atebits.Tweetie2.ipa \
+          packages/NeoFreeBird-sideloaded.ipa \
+          .theos/obj/debug/BHTwitter.dylib \
+          "$SCRIPT_DIR/layout/Library/Application Support/BHT/BHTwitter.bundle"
+      elif command -v cyan >/dev/null 2>&1; then
         cyan -i packages/com.atebits.Tweetie2.ipa -o packages/NeoFreeBird-sideloaded --ignore-encrypted \
           -uwf .theos/obj/debug/zxPluginsInject.dylib .theos/obj/debug/libbhFLEX.dylib \
           .theos/obj/debug/BHTwitter.dylib layout/Library/Application\ Support/BHT/BHTwitter.bundle
