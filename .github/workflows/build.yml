@@ -145,7 +145,7 @@ jobs:
           fi
           wget "$IPA_URL" --no-verbose -O main/packages/com.atebits.Tweetie2.ipa
           # Supports binary and XML Info.plist formats.
-          INFO_ENTRY=$(unzip -Z1 main/packages/com.atebits.Tweetie2.ipa | grep -E '^Payload/[^/]+\.app/Info\.plist$' | head -n 1)
+          INFO_ENTRY=$(unzip -Z1 main/packages/com.atebits.Tweetie2.ipa | grep -E '^Payload/[^/]+\.app/Info\.plist$' || true)
           if [[ -z "$INFO_ENTRY" ]]; then
             echo "Invalid IPA: missing app Info.plist" >&2
             exit 1
@@ -160,7 +160,7 @@ jobs:
           DEPLOY_FORMAT: ${{ inputs.deploy_format }}
 
       - name: Prepare Image Pack
-        if: !inputs.use_prebuilt_ipa && inputs.resource_pack_url != '' && (inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore')
+        if: inputs.resource_pack_url != '' && (inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore') && !inputs.use_prebuilt_ipa
         run: |
           wget "$IMAGE_URL" --no-verbose -O main/resource-pack.zip
         env:
@@ -190,7 +190,7 @@ jobs:
           USE_PREBUILT_IPA: ${{ inputs.use_prebuilt_ipa && '1' || '0' }}
 
       - name: Rebrand IPA
-        if: !inputs.use_prebuilt_ipa && (inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore') && (inputs.twitter_branding || inputs.resource_pack_url != '')
+        if: (inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore') && (inputs.twitter_branding || inputs.resource_pack_url != '') && !inputs.use_prebuilt_ipa
         run: |
           cd ${{ github.workspace }}/main
           IMAGE_FLAG=""
