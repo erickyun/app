@@ -67,9 +67,12 @@ bundled_substrate="@rpath/CydiaSubstrate.framework/CydiaSubstrate"
 
 if [[ -n "$substrate_dependency" && "$substrate_dependency" != "$bundled_substrate" ]]; then
   echo "Fixing Substrate linkage: $substrate_dependency -> $bundled_substrate"
-  # Preserve parity with cyan's fix_common_dependencies(), which first strips
-  # the signature before editing LC_LOAD_DYLIB.
-  if command -v ldid >/dev/null; then ldid -R "$existing_dylib"; fi
+  # Homebrew's ldid does NOT support "-R" (it exits with code 1).
+  # On macOS, codesign can remove an existing signature before Mach-O editing.
+  # The IPA must still be re-signed after modification.
+  if codesign -dv "$existing_dylib" >/dev/null 2>&1; then
+    codesign --remove-signature "$existing_dylib"
+  fi
   install_name_tool -change "$substrate_dependency" "$bundled_substrate" "$existing_dylib"
 fi
 
