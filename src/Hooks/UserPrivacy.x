@@ -53,22 +53,46 @@ static BOOL BHTIsUserAvatarView(UIView* view) {
 void BHTApplyPrivacyToView(UIView* view) {
     if (!view) return;
 
+    // UIView.didMoveToWindow is invoked for every view in X. With all three
+    // settings at their defaults we must be a no-op: avoid unnecessary
+    // selectors, class introspection, and view mutations during feed loading.
+    BOOL hideAvatars = [BHTSettings boolForKey:@"hide_user_avatars"];
+    BOOL hideNames = [BHTSettings boolForKey:@"hide_user_names"];
+    BOOL hideUsernames = [BHTSettings boolForKey:@"hide_user_usernames"];
+    static BOOL privacyWasEnabled = NO;
+    if (!hideAvatars && !hideNames && !hideUsernames && !privacyWasEnabled) {
+        return;
+    }
+    if (hideAvatars || hideNames || hideUsernames) {
+        privacyWasEnabled = YES;
+    }
+
     if (BHTIsUserAvatarView(view)) {
-        BHTSetPrivacyHidden(view, [BHTSettings boolForKey:@"hide_user_avatars"]);
+        BHTSetPrivacyHidden(view, hideAvatars);
     }
 
     Class statusAuthorClass = objc_getClass("TTAStatusAuthorView");
     if (statusAuthorClass && [view isKindOfClass:statusAuthorClass]) {
+        // Some X builds expose different author label selectors. Never invoke
+        // one unless this actual instance implements it.
         TTAStatusAuthorView* author = (TTAStatusAuthorView*)view;
-        BHTSetPrivacyHidden(author.fullNameLabel, [BHTSettings boolForKey:@"hide_user_names"]);
-        BHTSetPrivacyHidden(author.usernameLabel, [BHTSettings boolForKey:@"hide_user_usernames"]);
+        if ([author respondsToSelector:@selector(fullNameLabel)]) {
+            BHTSetPrivacyHidden(author.fullNameLabel, hideNames);
+        }
+        if ([author respondsToSelector:@selector(usernameLabel)]) {
+            BHTSetPrivacyHidden(author.usernameLabel, hideUsernames);
+        }
     }
 
     Class userViewClass = objc_getClass("T1UserView");
     if (userViewClass && [view isKindOfClass:userViewClass]) {
         T1UserView* user = (T1UserView*)view;
-        BHTSetPrivacyHidden(user.fullNameLabel, [BHTSettings boolForKey:@"hide_user_names"]);
-        BHTSetPrivacyHidden(user.userNameLabel, [BHTSettings boolForKey:@"hide_user_usernames"]);
+        if ([user respondsToSelector:@selector(fullNameLabel)]) {
+            BHTSetPrivacyHidden(user.fullNameLabel, hideNames);
+        }
+        if ([user respondsToSelector:@selector(userNameLabel)]) {
+            BHTSetPrivacyHidden(user.userNameLabel, hideUsernames);
+        }
     }
 }
 
