@@ -9,7 +9,7 @@
 #import "HookHelpers.h"
 
 // These accessors are present in the app's ObjC UI classes (X 12.3).
-@interface TTAStatusAuthorView : UIView
+@interface TTAStatusAuthorView (BHTUserPrivacyLabels)
 @property (nonatomic, readonly) UILabel* fullNameLabel;
 @property (nonatomic, readonly) UILabel* usernameLabel;
 @end
@@ -125,12 +125,12 @@ void applyUserPrivacySettings(void) {
 
 - (void)_updateContent {
     %orig;
-    BHTApplyPrivacyToView(self);
+    BHTApplyPrivacyToView((UIView*)self);
 }
 
 - (void)layoutSubviews {
     %orig;
-    BHTApplyPrivacyToView(self);
+    BHTApplyPrivacyToView((UIView*)self);
 }
 
 %end
@@ -140,12 +140,12 @@ void applyUserPrivacySettings(void) {
 
 - (void)_update {
     %orig;
-    BHTApplyPrivacyToView(self);
+    BHTApplyPrivacyToView((UIView*)self);
 }
 
 - (void)layoutSubviews {
     %orig;
-    BHTApplyPrivacyToView(self);
+    BHTApplyPrivacyToView((UIView*)self);
 }
 
 %end
@@ -173,7 +173,7 @@ void applyUserPrivacySettings(void) {
 
 - (void)layoutSubviews {
     %orig;
-    BHTApplyPrivacyToView(self);
+    BHTApplyPrivacyToView((UIView*)self);
 }
 
 %end
@@ -182,7 +182,7 @@ void applyUserPrivacySettings(void) {
 
 - (void)layoutSubviews {
     %orig;
-    BHTApplyPrivacyToView(self);
+    BHTApplyPrivacyToView((UIView*)self);
 }
 
 %end
@@ -192,7 +192,7 @@ void applyUserPrivacySettings(void) {
 
 - (void)layoutSubviews {
     %orig;
-    BHTApplyPrivacyToView(self);
+    BHTApplyPrivacyToView((UIView*)self);
 }
 
 %end
