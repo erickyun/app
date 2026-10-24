@@ -133,7 +133,18 @@ case "$MODE" in
     fi
     if [[ -e ./packages/com.atebits.Tweetie2.ipa ]]; then
       say "Building the IPA."
-      if command -v cyan >/dev/null 2>&1; then
+      if [[ "${USE_PREBUILT_IPA:-0}" == "1" ]]; then
+        # This IPA already has BHTwitter linked into its main executable.
+        # Running cyan -f again injects a *second* LC_LOAD_DYLIB and causes
+        # DYLD: duplicate linked dylib. Instead preserve the existing loader
+        # command and replace/sign just the existing tweak binary and bundle.
+        say "Patching signed prebuilt NeoFreeBird IPA (no duplicate dylib injection)."
+        bash "$SCRIPT_DIR/scripts/patch-prebuilt-ipa.sh" \
+          packages/com.atebits.Tweetie2.ipa \
+          packages/NeoFreeBird-sideloaded.ipa \
+          .theos/obj/debug/BHTwitter.dylib \
+          "$SCRIPT_DIR/layout/Library/Application Support/BHT/BHTwitter.bundle"
+      elif command -v cyan >/dev/null 2>&1; then
         cyan -i packages/com.atebits.Tweetie2.ipa -o packages/NeoFreeBird-sideloaded --ignore-encrypted \
           -uwf .theos/obj/debug/zxPluginsInject.dylib .theos/obj/debug/libbhFLEX.dylib \
           .theos/obj/debug/BHTwitter.dylib layout/Library/Application\ Support/BHT/BHTwitter.bundle

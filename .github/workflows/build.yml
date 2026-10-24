@@ -12,10 +12,20 @@ on:
         description: "Target iOS Version"
         default: "15.0"
         required: true
+      use_prebuilt_ipa:
+        description: "Use working NeoFreeBird IPA (preserve installed components)"
+        default: true
+        required: false
+        type: boolean
+      prebuilt_ipa_url:
+        description: "NeoFreeBird 7.2.0 / X 12.33 IPA"
+        default: "https://github.com/NeoFreeBird/app/releases/download/v7.2.0/NeoFreeBird-sideloaded-X_7.2.0_12.33.ipa"
+        required: false
+        type: string
       decrypted_ipa_url:
-        description: "Direct URL of an X IPA"
+        description: "Decrypted stock X IPA URL, used only with prebuilt mode disabled"
         default: ""
-        required: true
+        required: false
         type: string
       deploy_format:
         description: "Deployment format"
@@ -125,17 +135,32 @@ jobs:
         if: inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore'
         id: x_version
         run: |
+          if [[ "$USE_PREBUILT" == "true" && "$DEPLOY_FORMAT" != "sideloaded" ]]; then
+            echo "Prebuilt IPA mode supports sideloaded builds only." >&2
+            exit 1
+          fi
+          if [[ -z "$IPA_URL" ]]; then
+            echo "Enable prebuilt IPA mode or provide a decrypted stock X IPA URL." >&2
+            exit 1
+          fi
           wget "$IPA_URL" --no-verbose -O main/packages/com.atebits.Tweetie2.ipa
-          unzip -q main/packages/com.atebits.Tweetie2.ipa -d main/tmp
-          X_VERSION=$(grep -A 1 '<key>CFBundleShortVersionString</key>' main/tmp/Payload/Twitter.app/Info.plist |
-            grep '<string>' | awk -F'[><]' '{print $3}')
+          # Supports binary and XML Info.plist formats.
+          INFO_ENTRY=$(unzip -Z1 main/packages/com.atebits.Tweetie2.ipa | grep -E '^Payload/[^/]+\.app/Info\.plist$' || true)
+          if [[ -z "$INFO_ENTRY" ]]; then
+            echo "Invalid IPA: missing app Info.plist" >&2
+            exit 1
+          fi
+          unzip -p main/packages/com.atebits.Tweetie2.ipa "$INFO_ENTRY" > main/DownloadedApp-Info.plist
+          X_VERSION=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" main/DownloadedApp-Info.plist)
           echo "version=${X_VERSION}" >> "$GITHUB_OUTPUT"
           echo "$X_VERSION"
         env:
-          IPA_URL: ${{ inputs.decrypted_ipa_url }}
+          IPA_URL: ${{ inputs.use_prebuilt_ipa && inputs.prebuilt_ipa_url || inputs.decrypted_ipa_url }}
+          USE_PREBUILT: ${{ inputs.use_prebuilt_ipa }}
+          DEPLOY_FORMAT: ${{ inputs.deploy_format }}
 
       - name: Prepare Image Pack
-        if: inputs.resource_pack_url != '' && (inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore')
+        if: inputs.resource_pack_url != '' && (inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore') && !inputs.use_prebuilt_ipa
         run: |
           wget "$IMAGE_URL" --no-verbose -O main/resource-pack.zip
         env:
@@ -162,9 +187,10 @@ jobs:
         env:
           THEOS: ${{ github.workspace }}/theos
           BUILD_DIR: ${{ github.workspace }}/ffmpeg-build
+          USE_PREBUILT_IPA: ${{ inputs.use_prebuilt_ipa && '1' || '0' }}
 
       - name: Rebrand IPA
-        if: (inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore') && (inputs.twitter_branding || inputs.resource_pack_url != '')
+        if: (inputs.deploy_format == 'sideloaded' || inputs.deploy_format == 'trollstore') && (inputs.twitter_branding || inputs.resource_pack_url != '') && !inputs.use_prebuilt_ipa
         run: |
           cd ${{ github.workspace }}/main
           IMAGE_FLAG=""
@@ -179,7 +205,7 @@ jobs:
              "main/packages/${{ steps.tweak_info.outputs.name }}-${BRANDING}-${{ inputs.deploy_format }}_${{ steps.tweak_info.outputs.version }}_${{ steps.x_version.outputs.version }}.${IPA_EXT}"
         env:
           IPA_EXT: ${{ inputs.deploy_format == 'trollstore' && 'tipa' || 'ipa' }}
-          BRANDING: ${{ inputs.twitter_branding && 'Twitter' || 'X' }}
+          BRANDING: ${{ inputs.use_prebuilt_ipa && 'X-Privacy' || (inputs.twitter_branding && 'Twitter' || 'X') }}
 
       - name: Pass package name
         id: package_name
