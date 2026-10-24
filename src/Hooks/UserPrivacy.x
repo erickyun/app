@@ -50,6 +50,17 @@ static BOOL BHTIsUserAvatarView(UIView* view) {
            [name hasSuffix:@"UserFacepileView"];
 }
 
+// Called from UIView.setHidden: before UIKit can make an avatar visible.
+// Native avatar loading/reuse repeatedly sends setHidden:NO after layout;
+// a layoutSubviews-only hook briefly displays the image before hiding it
+// again, resulting in persistent flicker. Coerce those unhide attempts to
+// YES at the setter boundary while the toggle is enabled.
+BOOL BHTShouldKeepAvatarHidden(UIView* view) {
+    // This check runs only on attempted unhide calls, not every layout pass.
+    if (![BHTSettings boolForKey:@"hide_user_avatars"]) return NO;
+    return BHTIsUserAvatarView(view);
+}
+
 void BHTApplyPrivacyToView(UIView* view) {
     if (!view) return;
 
