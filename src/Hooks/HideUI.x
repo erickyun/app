@@ -7,6 +7,7 @@
 
 // Applies only to X's author, user and avatar presentation views.
 extern void BHTApplyPrivacyToView(UIView* view);
+extern BOOL BHTShouldKeepAvatarHidden(UIView* view);
 
 @interface T1ConversationFooterItem : NSObject
 @property (nonatomic, retain) NSNumber* viewCount;
@@ -133,6 +134,19 @@ extern void BHTApplyPrivacyToView(UIView* view);
 %end
 
 %hook UIView
+
+// Enforce avatar hiding before UIKit changes the visibility. X's async
+// image loaders routinely send setHidden:NO after layoutSubviews. Re-hiding
+// during the next layout produced repeated visible flashes. Leave all other
+// UIView visibility changes untouched, including name labels and post media.
+- (void)setHidden:(BOOL)hidden {
+    if (!hidden && BHTShouldKeepAvatarHidden(self)) {
+        %orig(YES);
+    } else {
+        %orig(hidden);
+    }
+}
+
 - (void)didMoveToWindow {
     %orig;
     BHTApplyPrivacyToView(self);
